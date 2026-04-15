@@ -157,15 +157,75 @@
     }
 
     .pointer {
-      width: 0;
-      height: 0;
-      border-left: 22px solid transparent;
-      border-right: 22px solid transparent;
-      border-top: 44px solid var(--accent);
-      filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.18));
       position: relative;
+      width: 54px;
+      height: 118px;
       z-index: 3;
-      margin-bottom: -10px;
+      margin-bottom: -58px;
+      display: grid;
+      place-items: start center;
+      filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.16));
+    }
+
+    .pointer-flag {
+      position: relative;
+      width: 38px;
+      height: 96px;
+      transform-origin: 50% 6px;
+      transform: rotate(7deg);
+    }
+
+    .pointer-flag::before {
+      content: "";
+      position: absolute;
+      left: 16px;
+      top: 0;
+      width: 6px;
+      height: 34px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fff5d6, #eab676);
+      box-shadow: inset 0 -1px 0 rgba(82, 45, 10, 0.2);
+    }
+
+    .pointer-flag::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 30px;
+      width: 38px;
+      height: 66px;
+      clip-path: polygon(50% 100%, 0 0, 100% 0);
+      border-radius: 4px;
+      background: linear-gradient(180deg, #ff7849, #c93516);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        0 4px 10px rgba(112, 34, 10, 0.18);
+    }
+
+    .pointer-hub {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      width: 16px;
+      height: 16px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fff6dc, #ffbe0b 58%, #d9481f 100%);
+      box-shadow: 0 2px 6px rgba(61, 27, 3, 0.24);
+    }
+
+    .pointer-base {
+      position: absolute;
+      top: 28px;
+      left: 50%;
+      width: 46px;
+      height: 12px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fff1d4, #efc07d);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        0 5px 10px rgba(72, 33, 4, 0.12);
     }
 
     .wheel-wrap {
@@ -174,6 +234,15 @@
       aspect-ratio: 1;
       display: grid;
       place-items: center;
+    }
+
+    .rotor {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      transform: rotate(0deg);
     }
 
     .wheel {
@@ -185,7 +254,6 @@
       box-shadow:
         inset 0 0 0 10px rgba(255, 255, 255, 0.38),
         0 28px 50px rgba(72, 33, 4, 0.26);
-      transition: transform 5.8s cubic-bezier(0.12, 0.95, 0.16, 1);
       overflow: hidden;
       background: #f5deb3;
     }
@@ -202,6 +270,42 @@
         radial-gradient(circle at 35% 35%, #fff8df, #ffbf69 62%, #d9481f 100%);
       box-shadow: 0 10px 18px rgba(73, 34, 3, 0.24);
       z-index: 2;
+    }
+
+    .peg-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .peg {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 10px;
+      height: 24px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fff9e1 0%, #f3d38f 42%, #b87421 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        0 2px 5px rgba(79, 35, 3, 0.22);
+      transform-origin: center center;
+    }
+
+    .peg::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 2px;
+      width: 5px;
+      height: 20px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.08));
+      opacity: 0.7;
     }
 
     .slice-label {
@@ -283,10 +387,10 @@
     <section class="panel">
       <h1>Колесо<br />Фортуны</h1>
       <p class="lead">
-        Вставь список участников и крути колесо. Один сегмент, одно имя, один победитель.
+        Вставь любой список и крути колесо. Один сегмент, одно значение, один победитель.
       </p>
 
-      <label for="names">Участники</label>
+      <label for="names">Список</label>
       <textarea id="names" spellcheck="false">Стас
 Саша К.
 Сережа
@@ -300,7 +404,7 @@
 Валя
 Паша</textarea>
       <p class="hint">
-        Пиши по одному имени в строке. Можно вставить и через запятую, лишние пробелы будут убраны.
+        Пиши по одному значению в строке. Можно вставить и через запятую, лишние пробелы будут убраны.
       </p>
 
       <div class="actions">
@@ -311,9 +415,16 @@
 
     <section class="wheel-panel">
       <div class="stage">
-        <div class="pointer" aria-hidden="true"></div>
+        <div class="pointer" id="pointer" aria-hidden="true">
+          <div class="pointer-flag"></div>
+          <div class="pointer-hub"></div>
+          <div class="pointer-base"></div>
+        </div>
         <div class="wheel-wrap">
-          <div class="wheel" id="wheel" aria-label="Колесо фортуны"></div>
+          <div class="rotor" id="rotor">
+            <div class="wheel" id="wheel" aria-label="Колесо фортуны"></div>
+            <div class="peg-ring" id="pegRing" aria-hidden="true"></div>
+          </div>
         </div>
 
         <div class="winner">
@@ -331,7 +442,10 @@
 
   <script>
     const textarea = document.getElementById("names");
+    const rotor = document.getElementById("rotor");
     const wheel = document.getElementById("wheel");
+    const pointerFlag = document.querySelector(".pointer-flag");
+    const pegRing = document.getElementById("pegRing");
     const spinBtn = document.getElementById("spinBtn");
     const shuffleBtn = document.getElementById("shuffleBtn");
     const winnerName = document.getElementById("winnerName");
@@ -340,9 +454,16 @@
 
     let currentNames = [];
     let currentRotation = 0;
+    let displayedRotation = 0;
     let spinTimeout = null;
     let spinning = false;
+    let animationFrameId = null;
+    let lastTickIndex = null;
+    let flagAnimation = null;
+    let flagAnimationUntil = 0;
     const STORAGE_KEY = "fortune-wheel:names";
+    const SPIN_DURATION = 5800;
+    const FLAG_REST_ANGLE = 7;
 
     const palette = [
       "#ffbe0b",
@@ -390,16 +511,131 @@
       return copy;
     }
 
+    function randomFloat() {
+      if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+        const values = new Uint32Array(1);
+        window.crypto.getRandomValues(values);
+        return values[0] / 4294967296;
+      }
+      return Math.random();
+    }
+
+    function triggerPointerTick() {
+      if (flagAnimation) {
+        flagAnimation.cancel();
+      }
+
+      flagAnimationUntil = performance.now() + 210;
+
+      flagAnimation = pointerFlag.animate(
+        [
+          { transform: `rotate(${FLAG_REST_ANGLE}deg)` },
+          { transform: "rotate(-24deg)", offset: 0.38 },
+          { transform: "rotate(14deg)", offset: 0.72 },
+          { transform: `rotate(${FLAG_REST_ANGLE}deg)` }
+        ],
+        {
+          duration: 210,
+          easing: "cubic-bezier(0.2, 0.9, 0.28, 1)"
+        }
+      );
+    }
+
+    function stopSpinAnimation(resetFlag = false) {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      if (flagAnimation) {
+        const computedTransform = getComputedStyle(pointerFlag).transform;
+        flagAnimation.cancel();
+        flagAnimation = null;
+        if (!resetFlag && computedTransform && computedTransform !== "none") {
+          pointerFlag.style.transform = computedTransform;
+        }
+      }
+      if (resetFlag) {
+        pointerFlag.style.transform = `rotate(${FLAG_REST_ANGLE}deg)`;
+      }
+      lastTickIndex = null;
+    }
+
+    function easeOutCubic(value) {
+      return 1 - Math.pow(1 - value, 3);
+    }
+
+    function getTickIndex(rotation, count) {
+      if (count < 1) {
+        return 0;
+      }
+      const step = 360 / count;
+      const normalized = ((rotation % 360) + 360) % 360;
+      return Math.floor(normalized / step);
+    }
+
+    function updatePointerDrag(rotation, count, now) {
+      if (count < 1 || now < flagAnimationUntil) {
+        return;
+      }
+
+      const step = 360 / count;
+      const normalized = ((rotation % 360) + 360) % 360;
+      const phase = (normalized % step) / step;
+      const dragStart = 0.82;
+
+      if (phase < dragStart) {
+        pointerFlag.style.transform = `rotate(${FLAG_REST_ANGLE}deg)`;
+        return;
+      }
+
+      const local = (phase - dragStart) / (1 - dragStart);
+      const draggedAngle = FLAG_REST_ANGLE + local * -18;
+      pointerFlag.style.transform = `rotate(${draggedAngle}deg)`;
+    }
+
+    function animateSpin(fromRotation, toRotation, count) {
+      stopSpinAnimation(true);
+      const startedAt = performance.now();
+      lastTickIndex = getTickIndex(fromRotation, count);
+
+      function frame(now) {
+        const progress = Math.min((now - startedAt) / SPIN_DURATION, 1);
+        const eased = easeOutCubic(progress);
+        displayedRotation = fromRotation + (toRotation - fromRotation) * eased;
+        rotor.style.transform = `rotate(${displayedRotation}deg)`;
+        updatePointerDrag(displayedRotation, count, now);
+
+        const tickIndex = getTickIndex(displayedRotation, count);
+        if (tickIndex !== lastTickIndex) {
+          triggerPointerTick();
+          lastTickIndex = tickIndex;
+        }
+
+        if (progress < 1) {
+          animationFrameId = requestAnimationFrame(frame);
+          return;
+        }
+
+        displayedRotation = toRotation;
+        rotor.style.transform = `rotate(${toRotation}deg)`;
+        animationFrameId = null;
+      }
+
+      animationFrameId = requestAnimationFrame(frame);
+    }
+
     function renderWheel() {
       currentNames = parseNames(textarea.value);
       wheel.innerHTML = "";
+      pegRing.innerHTML = "";
 
       const count = currentNames.length;
       countValue.textContent = count;
 
       if (count < 2) {
         wheel.style.background = "radial-gradient(circle at 30% 30%, #fff5d7, #ffd7a1)";
-        winnerName.textContent = "Нужно минимум 2 имени";
+        rotor.style.transform = `rotate(${currentRotation}deg)`;
+        winnerName.textContent = "Нужно минимум 2 значения";
         statusValue.textContent = "ожидание";
         return;
       }
@@ -413,6 +649,14 @@
 
       wheel.style.background = `conic-gradient(${gradientParts.join(", ")})`;
 
+      currentNames.forEach((_, index) => {
+        const peg = document.createElement("div");
+        peg.className = "peg";
+        const angle = index * step - 90;
+        peg.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-276px)`;
+        pegRing.appendChild(peg);
+      });
+
       currentNames.forEach((name, index) => {
         const label = document.createElement("div");
         label.className = "slice-label";
@@ -424,6 +668,7 @@
       });
 
       if (!spinning) {
+        rotor.style.transform = `rotate(${currentRotation}deg)`;
         winnerName.textContent = "Нажми «Крутить колесо»";
         statusValue.textContent = "готово";
       }
@@ -452,11 +697,12 @@
       spinBtn.disabled = true;
       shuffleBtn.disabled = true;
 
-      const extraTurns = 6 + Math.floor(Math.random() * 5);
-      const randomOffset = Math.random() * 360;
+      const extraTurns = 6 + Math.floor(randomFloat() * 5);
+      const randomOffset = randomFloat() * 360;
+      const startRotation = currentRotation;
       currentRotation += extraTurns * 360 + randomOffset;
 
-      wheel.style.transform = `rotate(${currentRotation}deg)`;
+      animateSpin(startRotation, currentRotation, currentNames.length);
 
       clearTimeout(spinTimeout);
       spinTimeout = setTimeout(() => {
@@ -466,7 +712,8 @@
         spinning = false;
         spinBtn.disabled = false;
         shuffleBtn.disabled = false;
-      }, 5900);
+        stopSpinAnimation();
+      }, SPIN_DURATION + 100);
     }
 
     textarea.addEventListener("input", () => {
