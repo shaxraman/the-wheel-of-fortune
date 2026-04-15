@@ -245,6 +245,21 @@
       transform: rotate(0deg);
     }
 
+    .winner-flash {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 4;
+      mix-blend-mode: screen;
+      transition: opacity 240ms ease;
+    }
+
+    .winner-flash.is-visible {
+      opacity: 1;
+    }
+
     .wheel {
       width: 100%;
       height: 100%;
@@ -334,6 +349,31 @@
       background: rgba(255, 249, 235, 0.92);
       border: 1px solid rgba(217, 72, 31, 0.16);
       box-shadow: 0 16px 30px rgba(95, 49, 12, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .winner::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
+      transform: translateX(-130%);
+      opacity: 0;
+    }
+
+    .winner.is-celebrating {
+      border-color: rgba(255, 183, 3, 0.45);
+      box-shadow:
+        0 20px 40px rgba(95, 49, 12, 0.14),
+        0 0 0 6px rgba(255, 183, 3, 0.12);
+      animation: winner-pop 620ms cubic-bezier(0.2, 0.92, 0.28, 1);
+    }
+
+    .winner.is-celebrating::before {
+      opacity: 1;
+      animation: winner-shine 760ms ease;
     }
 
     .winner-label {
@@ -349,6 +389,8 @@
       font-size: clamp(1.5rem, 4vw, 2.8rem);
       line-height: 1.05;
       min-height: 1.1em;
+      position: relative;
+      z-index: 1;
     }
 
     .stats {
@@ -365,6 +407,59 @@
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.68);
       border: 1px solid rgba(92, 57, 24, 0.1);
+    }
+
+    .confetti-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -8%;
+      width: 10px;
+      height: 18px;
+      border-radius: 2px;
+      opacity: 0.92;
+      animation: confetti-fall linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+        opacity: 0;
+      }
+      8% {
+        opacity: 0.95;
+      }
+      100% {
+        transform: translate3d(var(--drift-x), 120vh, 0) rotate(var(--spin-turn));
+        opacity: 0;
+      }
+    }
+
+    @keyframes winner-pop {
+      0% {
+        transform: scale(0.98);
+      }
+      45% {
+        transform: scale(1.03);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes winner-shine {
+      0% {
+        transform: translateX(-130%);
+      }
+      100% {
+        transform: translateX(130%);
+      }
     }
 
     @media (max-width: 920px) {
@@ -424,10 +519,11 @@
           <div class="rotor" id="rotor">
             <div class="wheel" id="wheel" aria-label="Колесо фортуны"></div>
             <div class="peg-ring" id="pegRing" aria-hidden="true"></div>
+            <div class="winner-flash" id="winnerFlash" aria-hidden="true"></div>
           </div>
         </div>
 
-        <div class="winner">
+        <div class="winner" id="winnerCard">
           <p class="winner-label">Победитель</p>
           <p class="winner-name" id="winnerName">Нажми «Крутить колесо»</p>
         </div>
@@ -437,6 +533,7 @@
           <div class="badge">Статус: <span id="statusValue">готово</span></div>
         </div>
       </div>
+      <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
     </section>
   </main>
 
@@ -446,16 +543,21 @@
     const wheel = document.getElementById("wheel");
     const pointerFlag = document.querySelector(".pointer-flag");
     const pegRing = document.getElementById("pegRing");
+    const winnerFlash = document.getElementById("winnerFlash");
     const spinBtn = document.getElementById("spinBtn");
     const shuffleBtn = document.getElementById("shuffleBtn");
+    const winnerCard = document.getElementById("winnerCard");
     const winnerName = document.getElementById("winnerName");
     const countValue = document.getElementById("countValue");
     const statusValue = document.getElementById("statusValue");
+    const confettiLayer = document.getElementById("confettiLayer");
 
     let currentNames = [];
     let currentRotation = 0;
     let displayedRotation = 0;
     let spinTimeout = null;
+    let confettiTimeout = null;
+    let celebrationTimeout = null;
     let spinning = false;
     let animationFrameId = null;
     let lastTickIndex = null;
@@ -511,6 +613,15 @@
       return copy;
     }
 
+    function clearCelebration() {
+      winnerFlash.classList.remove("is-visible");
+      winnerFlash.style.background = "";
+      winnerCard.classList.remove("is-celebrating");
+      confettiLayer.innerHTML = "";
+      clearTimeout(confettiTimeout);
+      clearTimeout(celebrationTimeout);
+    }
+
     function randomFloat() {
       if (window.crypto && typeof window.crypto.getRandomValues === "function") {
         const values = new Uint32Array(1);
@@ -518,6 +629,64 @@
         return values[0] / 4294967296;
       }
       return Math.random();
+    }
+
+    function getWinnerIndex(rotation, count) {
+      const step = 360 / count;
+      const normalized = ((rotation % 360) + 360) % 360;
+      const pointerAngle = (360 - normalized) % 360;
+      return Math.floor(pointerAngle / step) % count;
+    }
+
+    function showWinnerFlash(index, count) {
+      const step = 360 / count;
+      const start = index * step;
+      const end = start + step;
+
+      winnerFlash.style.background = `
+        conic-gradient(
+          from 0deg,
+          rgba(255,255,255,0) 0deg ${start}deg,
+          rgba(255, 247, 170, 0.92) ${start}deg,
+          rgba(255, 193, 7, 0.58) ${(start + end) / 2}deg,
+          rgba(255,255,255,0.92) ${end}deg,
+          rgba(255,255,255,0) ${end}deg 360deg
+        )
+      `;
+      winnerFlash.classList.add("is-visible");
+    }
+
+    function burstConfetti() {
+      confettiLayer.innerHTML = "";
+      const colors = ["#ffbe0b", "#fb5607", "#ff006e", "#43aa8b", "#4d96ff", "#fff4b5"];
+
+      for (let i = 0; i < 42; i += 1) {
+        const piece = document.createElement("div");
+        piece.className = "confetti-piece";
+        piece.style.left = `${6 + randomFloat() * 88}%`;
+        piece.style.background = colors[i % colors.length];
+        piece.style.animationDuration = `${1800 + randomFloat() * 1200}ms`;
+        piece.style.animationDelay = `${randomFloat() * 180}ms`;
+        piece.style.setProperty("--drift-x", `${-90 + randomFloat() * 180}px`);
+        piece.style.setProperty("--spin-turn", `${180 + randomFloat() * 720}deg`);
+        confettiLayer.appendChild(piece);
+      }
+
+      confettiTimeout = setTimeout(() => {
+        confettiLayer.innerHTML = "";
+      }, 3200);
+    }
+
+    function celebrateWinner(index, winner) {
+      clearCelebration();
+      showWinnerFlash(index, currentNames.length);
+      winnerCard.classList.add("is-celebrating");
+      burstConfetti();
+
+      celebrationTimeout = setTimeout(() => {
+        winnerFlash.classList.remove("is-visible");
+        winnerCard.classList.remove("is-celebrating");
+      }, 1600);
     }
 
     function triggerPointerTick() {
@@ -633,6 +802,7 @@
       countValue.textContent = count;
 
       if (count < 2) {
+        clearCelebration();
         wheel.style.background = "radial-gradient(circle at 30% 30%, #fff5d7, #ffd7a1)";
         rotor.style.transform = `rotate(${currentRotation}deg)`;
         winnerName.textContent = "Нужно минимум 2 значения";
@@ -675,12 +845,7 @@
     }
 
     function getWinner(rotation, names) {
-      const count = names.length;
-      const step = 360 / count;
-      const normalized = ((rotation % 360) + 360) % 360;
-      const pointerAngle = (360 - normalized) % 360;
-      const index = Math.floor(pointerAngle / step) % count;
-      return names[index];
+      return names[getWinnerIndex(rotation, names.length)];
     }
 
     function spinWheel() {
@@ -692,6 +857,7 @@
 
       spinning = true;
       currentNames = names;
+      clearCelebration();
       statusValue.textContent = "крутится";
       winnerName.textContent = "Выбираем...";
       spinBtn.disabled = true;
@@ -706,8 +872,10 @@
 
       clearTimeout(spinTimeout);
       spinTimeout = setTimeout(() => {
+        const winnerIndex = getWinnerIndex(currentRotation, currentNames.length);
         const winner = getWinner(currentRotation, currentNames);
         winnerName.textContent = winner;
+        celebrateWinner(winnerIndex, winner);
         statusValue.textContent = "остановлено";
         spinning = false;
         spinBtn.disabled = false;
