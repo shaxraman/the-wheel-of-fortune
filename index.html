@@ -158,10 +158,10 @@
 
     .pointer {
       position: relative;
-      width: 54px;
-      height: 118px;
+      width: 60px;
+      height: 106px;
       z-index: 3;
-      margin-bottom: -58px;
+      margin-bottom: -60px;
       display: grid;
       place-items: start center;
       filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.16));
@@ -169,32 +169,34 @@
 
     .pointer-flag {
       position: relative;
-      width: 38px;
-      height: 96px;
-      transform-origin: 50% 6px;
-      transform: rotate(7deg);
+      z-index: 2;
+      width: 30px;
+      height: 82px;
+      transform-origin: 50% 16px;
+      transform: rotate(0deg);
+      will-change: transform;
     }
 
     .pointer-flag::before {
+      display: none;
       content: "";
       position: absolute;
-      left: 16px;
-      top: 0;
-      width: 6px;
-      height: 34px;
+      left: 13px;
+      top: 12px;
+      width: 4px;
+      height: 23px;
       border-radius: 999px;
-      background: linear-gradient(180deg, #fff5d6, #eab676);
+      background: linear-gradient(90deg, #b66a20, #fff1c8 45%, #c47b2b);
       box-shadow: inset 0 -1px 0 rgba(82, 45, 10, 0.2);
     }
 
     .pointer-flag::after {
       content: "";
       position: absolute;
-      left: 0;
-      top: 30px;
-      width: 38px;
+      left: 11px;
+      top: 16px;
+      width: 8px;
       height: 66px;
-      clip-path: polygon(50% 100%, 0 0, 100% 0);
       border-radius: 4px;
       background: linear-gradient(180deg, #ff7849, #c93516);
       box-shadow:
@@ -204,28 +206,31 @@
 
     .pointer-hub {
       position: absolute;
-      top: 12px;
+      z-index: 3;
+      top: 6px;
       left: 50%;
-      width: 16px;
-      height: 16px;
+      width: 20px;
+      height: 20px;
       transform: translateX(-50%);
       border-radius: 50%;
       background: radial-gradient(circle at 30% 30%, #fff6dc, #ffbe0b 58%, #d9481f 100%);
-      box-shadow: 0 2px 6px rgba(61, 27, 3, 0.24);
+      border: 2px solid #fff2cf;
+      box-shadow: 0 2px 6px rgba(61, 27, 3, 0.24), inset 0 -2px 2px rgba(116, 42, 4, 0.25);
     }
 
     .pointer-base {
       position: absolute;
-      top: 28px;
+      z-index: 1;
+      top: 5px;
       left: 50%;
-      width: 46px;
-      height: 12px;
+      width: 38px;
+      height: 31px;
       transform: translateX(-50%);
-      border-radius: 999px;
-      background: linear-gradient(180deg, #fff1d4, #efc07d);
+      border-radius: 14px 14px 8px 8px;
+      background: linear-gradient(90deg, #d78a39, #fff0cb 48%, #d78a39);
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.55),
-        0 5px 10px rgba(72, 33, 4, 0.12);
+        0 4px 8px rgba(72, 33, 4, 0.12);
     }
 
     .wheel-wrap {
@@ -300,8 +305,8 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      width: 10px;
-      height: 24px;
+      width: 12px;
+      height: 12px;
       border-radius: 999px;
       background: linear-gradient(180deg, #fff9e1 0%, #f3d38f 42%, #b87421 100%);
       box-shadow:
@@ -316,7 +321,7 @@
       left: 50%;
       top: 2px;
       width: 5px;
-      height: 20px;
+      height: 5px;
       transform: translateX(-50%);
       border-radius: 999px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.08));
@@ -555,17 +560,16 @@
     let currentNames = [];
     let currentRotation = 0;
     let displayedRotation = 0;
-    let spinTimeout = null;
     let confettiTimeout = null;
     let celebrationTimeout = null;
     let spinning = false;
     let animationFrameId = null;
-    let lastTickIndex = null;
-    let flagAnimation = null;
-    let flagAnimationUntil = 0;
+    let pointerAngle = 0;
+    let pointerVelocity = 0;
+    let contactGeometry = { radius: 276, pivotHeight: 334 };
     const STORAGE_KEY = "fortune-wheel:names";
-    const SPIN_DURATION = 5800;
-    const FLAG_REST_ANGLE = 7;
+    const SPIN_DURATION = 6000;
+    const FLAG_REST_ANGLE = 0;
 
     const palette = [
       "#ffbe0b",
@@ -631,11 +635,10 @@
       return Math.random();
     }
 
-    function getWinnerIndex(rotation, count) {
+    function getWinnerIndex(rotation, count, pointerBearing = 0) {
       const step = 360 / count;
-      const normalized = ((rotation % 360) + 360) % 360;
-      const pointerAngle = (360 - normalized) % 360;
-      return Math.floor(pointerAngle / step) % count;
+      const sectorAngle = ((pointerBearing - rotation) % 360 + 360) % 360;
+      return Math.floor(sectorAngle / step) % count;
     }
 
     function showWinnerFlash(index, count) {
@@ -689,25 +692,47 @@
       }, 1600);
     }
 
-    function triggerPointerTick() {
-      if (flagAnimation) {
-        flagAnimation.cancel();
-      }
-
-      flagAnimationUntil = performance.now() + 210;
-
-      flagAnimation = pointerFlag.animate(
-        [
-          { transform: `rotate(${FLAG_REST_ANGLE}deg)` },
-          { transform: "rotate(-24deg)", offset: 0.38 },
-          { transform: "rotate(14deg)", offset: 0.72 },
-          { transform: `rotate(${FLAG_REST_ANGLE}deg)` }
-        ],
-        {
-          duration: 210,
-          easing: "cubic-bezier(0.2, 0.9, 0.28, 1)"
+    function updatePointerContact(rotation, count, dt = 1 / 240) {
+      const step = 360 / count;
+      const { radius, pivotHeight } = contactGeometry;
+      const length = 62; // Pivot to the centre of the rounded tongue tip.
+      const clearance = 10; // 6px pin radius + 4px tongue radius.
+      const previousAngle = pointerAngle;
+      pointerVelocity += (-180 * pointerAngle - 19 * pointerVelocity) * dt;
+      pointerAngle = Math.max(0, pointerAngle + pointerVelocity * dt);
+      let constraint = 0;
+      for (let index = 0; index < count; index += 1) {
+        const a = (index * step + rotation) * Math.PI / 180;
+        const x = radius * Math.sin(a);
+        const y = pivotHeight - radius * Math.cos(a);
+        const distance = Math.hypot(x, y);
+        if (distance >= length + clearance || y <= 0) continue;
+        // Circle against a capsule: side tangency, then rounded-tip contact.
+        const halfAngle = distance <= Math.hypot(length, clearance)
+          ? Math.asin(Math.min(1, clearance / distance))
+          : Math.acos(Math.max(-1, Math.min(1,
+              (distance * distance + length * length - clearance * clearance) /
+              (2 * distance * length))));
+        const direction = Math.atan2(x, y);
+        const nearEdge = direction - halfAngle;
+        const edge = direction + halfAngle;
+        // Only constrain a tongue that intersects the pin or returns onto it.
+        // A nearby pin to its right must not lift it across an empty gap.
+        if (edge > 0 && Math.max(previousAngle, pointerAngle) >= nearEdge &&
+            pointerAngle <= edge) {
+          constraint = Math.max(constraint, edge);
         }
-      );
+      }
+      // The spring only returns the released tongue; a pin is a solid stop.
+      if (pointerAngle < constraint) {
+        pointerAngle = constraint;
+        pointerVelocity = 0;
+      }
+      if (constraint === 0 && pointerAngle < 0.0001 && Math.abs(pointerVelocity) < 0.001) {
+        pointerAngle = 0;
+        pointerVelocity = 0;
+      }
+      pointerFlag.style.transform = `rotate(${-pointerAngle * 180 / Math.PI}deg)`;
     }
 
     function stopSpinAnimation(resetFlag = false) {
@@ -715,72 +740,61 @@
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
       }
-      if (flagAnimation) {
-        const computedTransform = getComputedStyle(pointerFlag).transform;
-        flagAnimation.cancel();
-        flagAnimation = null;
-        if (!resetFlag && computedTransform && computedTransform !== "none") {
-          pointerFlag.style.transform = computedTransform;
-        }
-      }
       if (resetFlag) {
+        pointerAngle = FLAG_REST_ANGLE;
+        pointerVelocity = 0;
         pointerFlag.style.transform = `rotate(${FLAG_REST_ANGLE}deg)`;
       }
-      lastTickIndex = null;
     }
 
-    function easeOutCubic(value) {
-      return 1 - Math.pow(1 - value, 3);
-    }
+    function spinProgress(value) {
+      // Accelerate into a short, confident coast, then brake with increasing
+      // resistance. The areas are normalized so the wheel still lands exactly
+      // on the selected segment.
+      const accelerateUntil = 0.16;
+      const coastUntil = 0.33;
+      // Smoothstep-shaped braking has zero acceleration at both ends: it
+      // eases into friction and eases out into the final resting position,
+      // unlike a simple easing curve that visibly snaps at the finish.
+      const normalization = 0.5 * accelerateUntil + (coastUntil - accelerateUntil) +
+        0.5 * (1 - coastUntil);
 
-    function getTickIndex(rotation, count) {
-      if (count < 1) {
-        return 0;
+      if (value < accelerateUntil) {
+        return (value * value / (2 * accelerateUntil)) / normalization;
       }
-      const step = 360 / count;
-      const normalized = ((rotation % 360) + 360) % 360;
-      return Math.floor(normalized / step);
-    }
-
-    function updatePointerDrag(rotation, count, now) {
-      if (count < 1 || now < flagAnimationUntil) {
-        return;
-      }
-
-      const step = 360 / count;
-      const normalized = ((rotation % 360) + 360) % 360;
-      const phase = (normalized % step) / step;
-      const dragStart = 0.82;
-
-      if (phase < dragStart) {
-        pointerFlag.style.transform = `rotate(${FLAG_REST_ANGLE}deg)`;
-        return;
+      if (value < coastUntil) {
+        return (0.5 * accelerateUntil + value - accelerateUntil) / normalization;
       }
 
-      const local = (phase - dragStart) / (1 - dragStart);
-      const draggedAngle = FLAG_REST_ANGLE + local * -18;
-      pointerFlag.style.transform = `rotate(${draggedAngle}deg)`;
+      const brakingProgress = (value - coastUntil) / (1 - coastUntil);
+      const brakingDistance = brakingProgress - Math.pow(brakingProgress, 3) +
+        0.5 * Math.pow(brakingProgress, 4);
+      return (0.5 * accelerateUntil + (coastUntil - accelerateUntil) +
+        (1 - coastUntil) * brakingDistance) / normalization;
     }
 
-    function animateSpin(fromRotation, toRotation, count) {
-      stopSpinAnimation(true);
+    function animateSpin(fromRotation, toRotation, count, onComplete) {
+      stopSpinAnimation();
       const startedAt = performance.now();
-      lastTickIndex = getTickIndex(fromRotation, count);
+      let previousElapsed = 0;
 
       function frame(now) {
-        const progress = Math.min((now - startedAt) / SPIN_DURATION, 1);
-        const eased = easeOutCubic(progress);
+        const elapsed = now - startedAt;
+        const progress = Math.min(elapsed / SPIN_DURATION, 1);
+        const eased = spinProgress(progress);
         displayedRotation = fromRotation + (toRotation - fromRotation) * eased;
         rotor.style.transform = `rotate(${displayedRotation}deg)`;
-        updatePointerDrag(displayedRotation, count, now);
-
-        const tickIndex = getTickIndex(displayedRotation, count);
-        if (tickIndex !== lastTickIndex) {
-          triggerPointerTick();
-          lastTickIndex = tickIndex;
+        const begin = Math.max(previousElapsed, elapsed - 100);
+        const steps = Math.max(1, Math.ceil((elapsed - begin) / 4));
+        for (let i = 1; i <= steps; i += 1) {
+          const t = begin + (elapsed - begin) * i / steps;
+          const rotation = fromRotation + (toRotation - fromRotation) *
+            spinProgress(Math.min(t / SPIN_DURATION, 1));
+          updatePointerContact(rotation, count, (elapsed - begin) / steps / 1000);
         }
+        previousElapsed = elapsed;
 
-        if (progress < 1) {
+        if (elapsed < SPIN_DURATION + 700) {
           animationFrameId = requestAnimationFrame(frame);
           return;
         }
@@ -788,6 +802,7 @@
         displayedRotation = toRotation;
         rotor.style.transform = `rotate(${toRotation}deg)`;
         animationFrameId = null;
+        onComplete();
       }
 
       animationFrameId = requestAnimationFrame(frame);
@@ -822,8 +837,11 @@
       currentNames.forEach((_, index) => {
         const peg = document.createElement("div");
         peg.className = "peg";
-        const angle = index * step - 90;
-        peg.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-276px)`;
+        // conic-gradient starts at 12 o'clock, so the first peg must use the
+        // same zero angle as the first name segment.
+        const angle = index * step;
+        peg.dataset.angle = angle;
+        peg.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(${-contactGeometry.radius}px)`;
         pegRing.appendChild(peg);
       });
 
@@ -844,8 +862,29 @@
       }
     }
 
-    function getWinner(rotation, names) {
-      return names[getWinnerIndex(rotation, names.length)];
+    function measureContactGeometry() {
+      const wrap = document.querySelector('.wheel-wrap').getBoundingClientRect();
+      const mount = document.querySelector('.pointer').getBoundingClientRect();
+      const radius = wrap.width / 2 - 4;
+      contactGeometry = {
+        radius,
+        pivotHeight: wrap.top + wrap.height / 2 - (mount.top + 16)
+      };
+      pegRing.querySelectorAll('.peg').forEach(peg => {
+        peg.style.transform = `translate(-50%, -50%) rotate(${peg.dataset.angle}deg) translateY(${-radius}px)`;
+      });
+      if (!spinning && currentNames.length > 1) {
+        for (let i = 0; i < 180; i += 1) updatePointerContact(currentRotation, currentNames.length);
+      }
+    }
+    new ResizeObserver(measureContactGeometry).observe(document.querySelector('.wheel-wrap'));
+
+    function getPointerBearing() {
+      // Visible tip, in wheel-centred coordinates (clockwise from 12 o'clock).
+      const tipLength = 66;
+      const x = tipLength * Math.sin(pointerAngle);
+      const up = contactGeometry.pivotHeight - tipLength * Math.cos(pointerAngle);
+      return Math.atan2(x, up) * 180 / Math.PI;
     }
 
     function spinWheel() {
@@ -862,26 +901,32 @@
       winnerName.textContent = "Выбираем...";
       spinBtn.disabled = true;
       shuffleBtn.disabled = true;
+      textarea.disabled = true;
 
-      const extraTurns = 6 + Math.floor(randomFloat() * 5);
-      const randomOffset = randomFloat() * 360;
+      const extraTurns = 8 + Math.floor(randomFloat() * 4);
+      const winnerIndex = Math.floor(randomFloat() * currentNames.length);
+      const step = 360 / currentNames.length;
+      // Allow the whole sector: only an actual pin contact can hold the tongue.
+      const landingPhase = randomFloat();
+      const targetAngleAtPointer = (winnerIndex + landingPhase) * step;
+      const targetNormalizedRotation = (360 - targetAngleAtPointer) % 360;
       const startRotation = currentRotation;
-      currentRotation += extraTurns * 360 + randomOffset;
+      const currentNormalizedRotation = ((currentRotation % 360) + 360) % 360;
+      const alignmentTurn = (targetNormalizedRotation - currentNormalizedRotation + 360) % 360;
+      currentRotation += extraTurns * 360 + alignmentTurn;
 
-      animateSpin(startRotation, currentRotation, currentNames.length);
-
-      clearTimeout(spinTimeout);
-      spinTimeout = setTimeout(() => {
-        const winnerIndex = getWinnerIndex(currentRotation, currentNames.length);
-        const winner = getWinner(currentRotation, currentNames);
+      measureContactGeometry();
+      animateSpin(startRotation, currentRotation, currentNames.length, () => {
+        const winnerIndex = getWinnerIndex(currentRotation, currentNames.length, getPointerBearing());
+        const winner = currentNames[winnerIndex];
         winnerName.textContent = winner;
         celebrateWinner(winnerIndex, winner);
         statusValue.textContent = "остановлено";
         spinning = false;
         spinBtn.disabled = false;
         shuffleBtn.disabled = false;
-        stopSpinAnimation();
-      }, SPIN_DURATION + 100);
+        textarea.disabled = false;
+      });
     }
 
     textarea.addEventListener("input", () => {
